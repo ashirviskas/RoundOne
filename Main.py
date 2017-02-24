@@ -183,10 +183,10 @@ def ParseFromFile(input_filename):
     print("Running Time PlacementNew: ", time.time() - algorithm_time)
 
     file = open(input_filename+"answahs", "w")
-    for e in Endpoints:
-        print("Endpoints ",e.id_," Requests:")
-        for r in e.requests:
-            print(r)
+    #for e in Endpoints:
+     #   print("Endpoints ",e.id_," Requests:")
+      #  for r in e.requests:
+       #     print(r)
     file.write(str(len(Caches)))
     for cache in Caches:
         file.write('\n')
@@ -316,7 +316,7 @@ def CountVideoScore(video, cache):
 
 
 ParseFromFile("example.in")
-#ParseFromFile("me_at_the_zoo.in")
-#ParseFromFile("videos_worth_spreading.in")
-#ParseFromFile("trending_today.in")
-#ParseFromFile("kittens.in")
+ParseFromFile("me_at_the_zoo.in")
+ParseFromFile("videos_worth_spreading.in")
+ParseFromFile("trending_today.in")
+ParseFromFile("kittens.in")
