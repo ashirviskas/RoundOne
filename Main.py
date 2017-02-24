@@ -170,8 +170,9 @@ def ParseFromFile(input_filename):
             cache_id, latency = lines[current_line].split(' ')
             current_line += 1
             latency = int(latency.rstrip('\n'))
-            Ch.append(Cache(int(cache_id)))
-            Endpoints[e].add_cache(Ch[len(Ch)-1], latency)
+            cache = Cache(int(cache_id))
+            Ch.append(cache)
+            Endpoints[e].add_cache(cache, latency)
     for r in range(R):
         video_id, endpoint, request_num = lines[current_line].split(' ')
         current_line+=1
@@ -185,7 +186,7 @@ def ParseFromFile(input_filename):
     AddEndointsToCaches(Endpoints, Caches)
     COUNTER = 0
     if not IMPORT:
-        MaxScoresForVideos(Videos, Caches) # also adds endpoint latencies
+        MaxScoresForVideosByRequests(Videos,requests,Caches,Endpoints) # also adds endpoint latencies
         save_object(Videos,input_filename+"videos_pre")
     if IMPORT:
         Videos = load_object(input_filename+"videos_pre")
@@ -215,6 +216,8 @@ def load_object(filename):
     with open (filename, 'rb') as fp:
         itemlist = pickle.load(fp)
     return itemlist
+
+
 def MaxScoresForVideos(Videos, Caches):
     global COUNTER
     global COUNTER_MAX
@@ -243,6 +246,26 @@ def MaxScoresForVideos(Videos, Caches):
     print("Dese Stuffs Finished")
     print("Running Time MaxScoresForVideos: ", time.time() - algorithm_time)
 
+def MaxScoresForVideosByRequests(Videos, Requests, Caches, Endpoints):
+    global COUNTER
+    global COUNTER_MAX
+    global ENDPOINT_SCORES_ENABLED
+    county = 0
+    print("Getting MaxScores for Videos By Requests")
+    algorithm_time = time.time()
+    all_versions_num = len(Videos) * len(Caches)
+    print("videos * caches = ", all_versions_num)
+    for request in Requests:
+        for cache in Endpoints[request.endpoint].caches:
+            score = CountVideoScore(Videos[request.video_id],cache)
+            Videos[request.video_id].scores[cache.id_] = score
+            county += 1
+            if county % 10000 == 0:
+                print("passed: ", county)
+                remaining = ((all_versions_num - county) / 10000) * (time.time() - algorithm_time)
+                print("Time remaining:", remaining)
+                algorithm_time = time.time()
+    print("Dese Stuffs Finished")
 
 def EndpointTimesForVideos(Caches, Videos):
     for video in Videos:
@@ -259,17 +282,17 @@ def PlacementNew(Videos, Caches):
     all_versions_num = len(Videos) * len(Caches)
     for video in Videos:
         for cache in Caches:
-            score = video.scores[cache.id_]
-            if (score>0):
-                cache.add_video(video,score)
-                cache.free_space()
-                county += 1
-                if county % 10000 == 0:
-                    print("passed: ", county)
-                    remaining = ((all_versions_num - county) / 10000) * (time.time() - algorithm_time)
-                    print("Time remaining:", remaining)
-                    algorithm_time = time.time()
-
+            if cache.id_ in video.scores:
+                score = video.scores[cache.id_]
+                if (score>0):
+                    cache.add_video(video,score)
+                    cache.free_space()
+                    county += 1
+                    if county % 10000 == 0:
+                        print("passed: ", county)
+                        remaining = ((all_versions_num - county) / 10000) * (time.time() - algorithm_time)
+                        print("Time remaining:", remaining)
+                        algorithm_time = time.time()
 
 
 def Placement(Videos, Caches):
@@ -342,7 +365,9 @@ def CleanCacheList(Caches):
             if cache.id_ == element.id_:
                 exists = True
         if(not exists):
-            newList.append(Cache(cache.id_))
+            newList.append(cache)
+    newList.sort(key=operator.attrgetter('id_'))
+    #print("Sorted(?) Caches: ", newList)
     return newList
 
 
@@ -353,9 +378,6 @@ def CountVideoScore(video, cache):
             if (video.id_ == request.video_id):
                 score += (endpoint.latencyToData - endpoint.latencies[cache.id_])*request.requests
     return score
-
-
-
 
 
 ParseFromFile("example.in")
