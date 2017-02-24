@@ -1,13 +1,16 @@
 import time
 import operator
+import pickle
 
-
-CACHE_SIZE = 100
+# O(num_of_caches*num_of_videos*O(num_of_videos_in_cache)+num_of_caches*num_of_videos) (AM_I_DOIN_TIS_RIGHT???)
+CACHE_SIZE = 100000
 SCORE_LOWERING_COEFFICIENT = 2
 Caches = []
-COUNTER_MAX = 45
+COUNTER_MAX = 500000
 SIZE_SCORE_MULTI = 50
-ENDPOINT_SCORES_ENABLED = True
+COUNTER = 0
+ENDPOINT_SCORES_ENABLED = False
+IMPORT = False
 
 class Video:
     def __init__(self, size, id_, scores = {}, nodestimes = {}):
@@ -15,7 +18,6 @@ class Video:
         self.id_ = id_
         self.scores = {}
         self.endpointstimes = {}
-
 
     def __str__(self):
         return str(self.size)+ " " + str(self.id)
@@ -138,7 +140,11 @@ class Cache:
 
 
 def ParseFromFile(input_filename):
+    global COUNTER
+    global CACHE_SIZE
+    global IMPORT
     start_time = time.time()
+    COUNTER = 0
     print("Starting To work with", input_filename)
     file_object  = open(input_filename, "r")
     V, E, R, C, C_size = list(map(int, file_object.readline().split(' '))) #initialising things from data file
@@ -174,11 +180,17 @@ def ParseFromFile(input_filename):
         requests.append(request)
 
     Caches = CleanCacheList(Ch)
-    #MaxScoresForVideos(Videos, Caches)
+
     AddRequestsToEndpoints(requests, Endpoints)
     AddEndointsToCaches(Endpoints, Caches)
-    MaxScoresForVideos(Videos, Caches) # also adds endpoint latencies
+    COUNTER = 0
+    if not IMPORT:
+        MaxScoresForVideos(Videos, Caches) # also adds endpoint latencies
+        save_object(Videos,input_filename+"videos_pre")
+    if IMPORT:
+        Videos = load_object(input_filename+"videos_pre")
     algorithm_time = time.time()
+    COUNTER = 0
     PlacementNew(Videos, Caches)
     print("Running Time PlacementNew: ", time.time() - algorithm_time)
 
@@ -194,38 +206,69 @@ def ParseFromFile(input_filename):
     file.close()
     print("Running Time: ", time.time() - start_time)
 
+def save_object(obj, filename):
+    with open(filename, 'wb') as fp:
+        pickle.dump(obj, fp)
 
+
+def load_object(filename):
+    with open (filename, 'rb') as fp:
+        itemlist = pickle.load(fp)
+    return itemlist
 def MaxScoresForVideos(Videos, Caches):
+    global COUNTER
+    global COUNTER_MAX
+    global ENDPOINT_SCORES_ENABLED
+    county = 0
     print("Getting MaxScores for Videos")
+    algorithm_time = time.time()
+    all_versions_num = len(Videos) * len(Caches)
+    print ("videos * caches = ", all_versions_num)
     for video in Videos:
         for cache in Caches:
             score = CountVideoScore(video, cache)
             video.scores[cache.id_] = score
-            if (ENDPOINT_SCORES_ENABLED):
-                for endpoint in cache.endpoints: # NEEEEDS IFFF!!
+            county += 1
+            if county % 10000 ==0:
+                print("passed: ", county)
+                remaining = ((all_versions_num - county)/10000)*(time.time() - algorithm_time)
+                print("Time remaining:",remaining)
+                algorithm_time = time.time()
+            #if ENDPOINT_SCORES_ENABLED:
+                """for endpoint in cache.endpoints: # NEEEEDS IFFF!!
+                    COUNTER += 1
                     for r in endpoint.getRequests(video.id_):
                         if video.id_== r.video_id:
-                            video.endpointstimes[endpoint.id_]=endpoint.latencies[cache.id_]
+                            video.endpointstimes[endpoint.id_]=endpoint.latencies[cache.id_]"""
     print("Dese Stuffs Finished")
+    print("Running Time MaxScoresForVideos: ", time.time() - algorithm_time)
 
 
-
-    #for video in Videos:
-        #print ("Video: ",video.id_, " Scores: ", video.scores)
+def EndpointTimesForVideos(Caches, Videos):
+    for video in Videos:
+        for cache in Caches:
+            for video in cache.videos:
+                for endpoint in cache.endpoints:
+                   print()
 
 
 def PlacementNew(Videos, Caches):
-
+    county = 0
+    print("Placeing Videos: ")
+    algorithm_time = time.time()
+    all_versions_num = len(Videos) * len(Caches)
     for video in Videos:
-        counter = 0
         for cache in Caches:
-            if (counter < COUNTER_MAX):
-                score = video.scores[cache.id_]
-                if (score>0):
-                    cache.add_video(video,score)
-                    cache.free_space()
-            else:
-                break
+            score = video.scores[cache.id_]
+            if (score>0):
+                cache.add_video(video,score)
+                cache.free_space()
+                county += 1
+                if county % 10000 == 0:
+                    print("passed: ", county)
+                    remaining = ((all_versions_num - county) / 10000) * (time.time() - algorithm_time)
+                    print("Time remaining:", remaining)
+                    algorithm_time = time.time()
 
 
 
